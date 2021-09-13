@@ -1,0 +1,29 @@
+[package]
+name = "rust_t"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+diesel = { version = "1.4.4", features = ["postgres", "uuid", "r2d2"] }
+diesel_migrations = "1.4.0"
+dotenv = "0.15.0"
+uuid = { version = "0.6.5", features = ["v4"] }
+tonic = "0.5.2"
+prost = "0.8.0"
+prost-types = "0.8.0"
+tokio = { version = "1.10.0", features = ["rt-multi-thread"] }
+tokio-stream = "0.1.7"
+log = "0.4.14"
+env_logger = "0.9.0"
+mockall = "0.10.2"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[build-dependencies]
+tonic-build = "0.5.2"
