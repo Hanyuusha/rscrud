@@ -14,10 +14,11 @@ tonic = "0.5.2"
 prost = "0.8.0"
 prost-types = "0.8.0"
 tokio = { version = "1.10.0", features = ["rt-multi-thread"] }
-tokio-stream = "0.1.7"
 log = "0.4.14"
 env_logger = "0.9.0"
 mockall = "0.10.2"
+async-trait = "0.1.51"
+tokio-diesel = { git="https://github.com/mehcode/tokio-diesel" }
 
 [dev-dependencies]
 tokio-test = "0.4.2"

@@ -64,6 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Simple CRUD App server started on {}", addr);
 
     Server::builder()
+        .max_concurrent_streams(1)
         .add_service(svc)
         .serve(socket_addr)
         .await?;

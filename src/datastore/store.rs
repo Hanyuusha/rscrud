@@ -4,7 +4,8 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use log::info;
 use mockall::automock;
 use uuid::Uuid;
-
+use async_trait::async_trait;
+use tokio_diesel::*;
 use crate::datastore::models::Post;
 use crate::datastore::schema::posts;
 use crate::datastore::schema::posts::columns::*;
@@ -16,8 +17,9 @@ type Conn = PooledConnection<ConnectionManager<PgConnection>>;
 embed_migrations!();
 
 #[automock]
+#[async_trait]
 pub trait DataStoreService: Send + Sync {
-    fn get_posts(&self, is_published: &bool) -> QueryResult<Vec<Post>>;
+    async fn get_posts(&self, is_published: bool) -> Result<Vec<Post>, AsyncError>;
     fn create_post(&self, post_title: &str, post_body: &str) -> QueryResult<Post>;
     fn update_post(&self, post: &Post) -> QueryResult<usize>;
     fn delete_post(&self, post_id: uuid::Uuid) -> QueryResult<usize>;
@@ -44,14 +46,15 @@ impl Datastore {
     }
 }
 
+#[async_trait]
 impl DataStoreService for Datastore {
-    fn get_posts(&self, is_published: &bool) -> QueryResult<Vec<Post>> {
+    async fn get_posts(&self, is_published: bool) -> Result<Vec<Post>, AsyncError> {
         let conn = self.get_connection();
-        let posts_query = posts::table.filter(published.eq(is_published)).load(&conn);
-        posts_query
+        let posts_query = posts::table.filter(published.eq(is_published)).load_async(&self.pool);
+        posts_query.await
     }
 
-    fn create_post(&self, post_title: &str, post_body: &str) -> QueryResult<Post> {
+    fn create_post(&self, post_title: &str, post_body: &str) ->QueryResult<Post> {
         let conn = self.get_connection();
         let new_post = Post {
             id: Uuid::new_v4(),

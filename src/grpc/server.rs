@@ -28,7 +28,7 @@ impl PostsService for PostsServiceImp {
         debug!("GetPostList got a request: {:?}", request);
 
         let published = request.into_inner().published;
-        let posts = self.store.get_posts(&published);
+        let posts = self.store.get_posts(published).await;
 
         let response = match posts {
             Ok(posts) => {
