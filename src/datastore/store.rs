@@ -5,7 +5,7 @@ use log::info;
 use mockall::automock;
 use uuid::Uuid;
 use async_trait::async_trait;
-use tokio_diesel::*;
+use tokio_diesel::{AsyncRunQueryDsl, AsyncError};
 use crate::datastore::models::Post;
 use crate::datastore::schema::posts;
 use crate::datastore::schema::posts::columns::*;
@@ -20,10 +20,10 @@ embed_migrations!();
 #[async_trait]
 pub trait DataStoreService: Send + Sync {
     async fn get_posts(&self, is_published: bool) -> Result<Vec<Post>, AsyncError>;
-    fn create_post(&self, post_title: &str, post_body: &str) -> QueryResult<Post>;
-    fn update_post(&self, post: &Post) -> QueryResult<usize>;
-    fn delete_post(&self, post_id: uuid::Uuid) -> QueryResult<usize>;
-    fn get_post(&self, post_id: uuid::Uuid) -> QueryResult<Post>;
+    async fn create_post(&self, post_title: &str, post_body: &str) -> Result<Post, AsyncError>;
+    async fn update_post(&self, post: &Post) -> Result<usize, AsyncError>;
+    async fn delete_post(&self, post_id: uuid::Uuid) -> Result<usize, AsyncError>;
+    async fn get_post(&self, post_id: uuid::Uuid) -> Result<Post, AsyncError>;
     fn run_migrations(&self);
 }
 
@@ -49,13 +49,17 @@ impl Datastore {
 #[async_trait]
 impl DataStoreService for Datastore {
     async fn get_posts(&self, is_published: bool) -> Result<Vec<Post>, AsyncError> {
-        let conn = self.get_connection();
-        let posts_query = posts::table.filter(published.eq(is_published)).load_async(&self.pool);
+        let posts_query = posts::table
+            .filter(
+                published.eq(
+                is_published
+                )
+            )
+            .load_async(&self.pool);
         posts_query.await
     }
 
-    fn create_post(&self, post_title: &str, post_body: &str) ->QueryResult<Post> {
-        let conn = self.get_connection();
+    async fn create_post(&self, post_title: &str, post_body: &str) -> Result<Post, AsyncError> {
         let new_post = Post {
             id: Uuid::new_v4(),
             title: String::from(post_title),
@@ -65,11 +69,11 @@ impl DataStoreService for Datastore {
 
         diesel::insert_into(posts::table)
             .values(&new_post)
-            .get_result(&conn)
+            .get_result_async(&self.pool)
+            .await
     }
 
-    fn update_post(&self, post: &Post) -> QueryResult<usize> {
-        let conn = self.get_connection();
+    async fn update_post(&self, post: &Post) -> Result<usize, AsyncError> {
         let target = posts::table.filter(id.eq(post.id));
 
         diesel::update(target)
@@ -78,20 +82,25 @@ impl DataStoreService for Datastore {
                 body.eq(&post.body),
                 published.eq(&post.published),
             ))
-            .execute(&conn)
+            .execute_async(&self.pool)
+            .await
     }
 
-    fn delete_post(&self, post_id: uuid::Uuid) -> QueryResult<usize> {
-        let conn = self.get_connection();
+    async fn delete_post(&self, post_id: uuid::Uuid) -> Result<usize, AsyncError> {
         let target = posts::table.filter(id.eq(post_id));
-        diesel::delete(target).execute(&conn)
+        diesel::delete(target)
+            .execute_async(&self.pool)
+            .await
     }
 
-    fn get_post(&self, post_id: uuid::Uuid) -> QueryResult<Post> {
-        let conn = self.get_connection();
-        let target = posts::table.filter(id.eq(post_id));
-        target.first::<Post>(&conn)
-    }
+    async fn get_post(&self, post_id: uuid::Uuid) -> Result<Post, AsyncError> {
+        posts::table
+            .filter(
+                id.eq(post_id)
+            )
+            .first_async(&self.pool)
+            .await
+      }
 
     fn run_migrations(&self) {
         info!("Running migrations");

@@ -2,12 +2,11 @@ use diesel::result::Error;
 use log::{debug, error, info};
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
-
-use crate::posts::posts_service_server::PostsService;
-use crate::posts::*;
-
+use tokio_diesel::AsyncError;
 use crate::datastore::models::Post as MPost;
 use crate::datastore::store::DataStoreService;
+use crate::posts::*;
+use crate::posts::posts_service_server::PostsService;
 
 pub struct PostsServiceImp {
     store: Box<dyn DataStoreService>,
@@ -28,7 +27,9 @@ impl PostsService for PostsServiceImp {
         debug!("GetPostList got a request: {:?}", request);
 
         let published = request.into_inner().published;
-        let posts = self.store.get_posts(published).await;
+        let posts = self.store
+            .get_posts(published)
+            .await;
 
         let response = match posts {
             Ok(posts) => {
@@ -61,7 +62,9 @@ impl PostsService for PostsServiceImp {
         debug!("CreatePost got a request: {:?}", request);
 
         let post = request.into_inner();
-        let post = self.store.create_post(&post.title, &post.body);
+        let post = self.store
+            .create_post(&post.title, &post.body)
+            .await;
 
         let response = match post {
             Ok(post) => {
@@ -98,12 +101,14 @@ impl PostsService for PostsServiceImp {
             }
         };
 
-        let result = self.store.update_post(&MPost {
-            id,
-            title: post.title,
-            body: post.body,
-            published: post.published,
-        });
+        let result = self.store
+            .update_post(&MPost {
+                id,
+                title: post.title,
+                body: post.body,
+                published: post.published,
+            })
+            .await;
 
         let response = match result {
             Ok(count) => {
@@ -139,7 +144,9 @@ impl PostsService for PostsServiceImp {
             }
         };
 
-        let result = self.store.delete_post(id);
+        let result = self.store
+            .delete_post(id)
+            .await;
 
         let response = match result {
             Ok(count) => {
@@ -176,7 +183,9 @@ impl PostsService for PostsServiceImp {
             }
         };
 
-        let result = self.store.get_post(id);
+        let result = self.store
+            .get_post(id)
+            .await;
 
         let response = match result {
             Ok(post) => {
@@ -195,7 +204,13 @@ impl PostsService for PostsServiceImp {
             Err(err) => {
                 error!("GetPost err: {}", err);
                 match err {
-                    Error::NotFound => Err(Status::not_found("Post not found")),
+                    AsyncError::Error(err) => {
+                        match err {
+                            Error::NotFound => Err(Status::not_found("Post not found")),
+
+                            _ => Err(Status::internal(err.to_string())),
+                        }
+                    }
 
                     _ => Err(Status::internal(err.to_string())),
                 }
