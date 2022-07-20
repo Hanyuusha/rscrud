@@ -1,14 +1,14 @@
+use crate::datastore::models::Post;
+use crate::datastore::schema::posts;
+use crate::datastore::schema::posts::columns::*;
+use async_trait::async_trait;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use log::info;
 use mockall::automock;
+use tokio_diesel::{AsyncError, AsyncRunQueryDsl};
 use uuid::Uuid;
-use async_trait::async_trait;
-use tokio_diesel::{AsyncRunQueryDsl, AsyncError};
-use crate::datastore::models::Post;
-use crate::datastore::schema::posts;
-use crate::datastore::schema::posts::columns::*;
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
@@ -50,11 +50,7 @@ impl Datastore {
 impl DataStoreService for Datastore {
     async fn get_posts(&self, is_published: bool) -> Result<Vec<Post>, AsyncError> {
         let posts_query = posts::table
-            .filter(
-                published.eq(
-                is_published
-                )
-            )
+            .filter(published.eq(is_published))
             .load_async(&self.pool);
         posts_query.await
     }
@@ -88,19 +84,15 @@ impl DataStoreService for Datastore {
 
     async fn delete_post(&self, post_id: uuid::Uuid) -> Result<usize, AsyncError> {
         let target = posts::table.filter(id.eq(post_id));
-        diesel::delete(target)
-            .execute_async(&self.pool)
-            .await
+        diesel::delete(target).execute_async(&self.pool).await
     }
 
     async fn get_post(&self, post_id: uuid::Uuid) -> Result<Post, AsyncError> {
         posts::table
-            .filter(
-                id.eq(post_id)
-            )
+            .filter(id.eq(post_id))
             .first_async(&self.pool)
             .await
-      }
+    }
 
     fn run_migrations(&self) {
         info!("Running migrations");

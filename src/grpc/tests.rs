@@ -5,8 +5,8 @@ use uuid::Uuid;
 use crate::datastore::models::Post;
 use crate::datastore::store::MockDataStoreService;
 use crate::grpc::server::PostsServiceImp;
-use crate::posts::*;
 use crate::posts::posts_service_server::PostsService;
+use crate::posts::*;
 
 macro_rules! aw {
     ($e:expr) => {
@@ -44,4 +44,3 @@ fn get_post_list() {
         Err(err) => panic!("{}", err),
     }
 }
-
